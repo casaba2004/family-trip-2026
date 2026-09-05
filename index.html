@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<!-- This site is hosted on Netlify. Anyone can build and deploy a site
+     like this one for free: https://netlify.new/?utm_campaign=ai-legible&utm_source=comment&utm_medium=referral&utm_id=f8fb5ab6-4ba6-4aa0-a1a3-37f724f28ddb
+     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
+<meta name="hosting-provider" content="Netlify">
+<meta name="netlify-deploy" content="https://netlify.new/?utm_campaign=ai-legible&amp;utm_source=meta&amp;utm_medium=referral&amp;utm_id=f8fb5ab6-4ba6-4aa0-a1a3-37f724f28ddb">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>칠순기념 강원도 가족여행 일정표</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --ink:#1c2530; --sub:#9a8f7c; --paper:#f6f1e7; --line:#e9e0cf; --card:#fffdf9;
+  --day1:#bd5b3d; --day2:#1f6f68; --day3:#4a4f8c;
+  --tour:#1f6f68; --tour-bg:#e2efec;
+  --meal:#c66038; --meal-bg:#f7e9df;
+  --stay:#6b4f8f; --stay-bg:#ece3f2;
+  --move:#a9855a; --move-bg:#f3ead9;
+  --gold:#c79a52;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  margin:0; font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  background:#0e1116; color:var(--ink);
+  display:flex; justify-content:center;
+}
+h1,h2,.serif{font-family:'Noto Serif KR','Pretendard',serif;}
+#app{
+  width:100%; max-width:430px; height:100vh; height:100dvh;
+  background:var(--paper); position:relative; overflow:hidden;
+  display:flex; flex-direction:column;
+  box-shadow:0 0 40px rgba(0,0,0,.5);
+}
+
+/* 헤더 */
+header{
+  padding:7px 14px 6px; background:var(--ink); flex:0 0 auto;
+  border-top:2px solid var(--gold);
+  display:flex; justify-content:space-between; align-items:center; gap:8px;
+}
+header .titles{flex:1 1 auto; min-width:0;}
+header .titles h1{margin:0; font-size:18px; font-weight:800; letter-spacing:-0.01em; color:#fbf7ee; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+header .meta{
+  font-size:10.5px; color:rgba(251,247,238,.6); margin-top:2px; font-weight:600;
+  letter-spacing:-0.03em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.copyBtn{
+  flex:0 0 auto; background:rgba(251,247,238,.1); border:1px solid rgba(251,247,238,.28);
+  color:#fbf7ee; font-size:11.5px; font-weight:700; padding:7px 10px; border-radius:20px; cursor:pointer;
+  white-space:nowrap;
+}
+.copyBtn:active{background:rgba(251,247,238,.22);}
+
+/* 탭 */
+.tabs{display:flex; gap:9px; background:var(--ink); flex:0 0 auto; padding:6px 14px 10px;}
+.tab{
+  flex:1; text-align:center; padding:10px 4px 9px; position:relative;
+  font-size:15px; font-weight:800; border:1.5px solid transparent; border-radius:15px;
+  cursor:pointer; transition:transform .15s, background .15s, box-shadow .15s, color .15s, border-color .15s;
+}
+.tab:active{transform:scale(.95);}
+.tab .d{display:block; font-size:10.5px; font-weight:700; margin-top:3px; letter-spacing:.01em; opacity:.9;}
+#tab1{background:rgba(189,91,61,.22); color:#f3c6b3; border-color:rgba(189,91,61,.5);}
+#tab2{background:rgba(31,111,104,.22); color:#aee0da; border-color:rgba(31,111,104,.5);}
+#tab3{background:rgba(74,79,140,.22); color:#c6c9ee; border-color:rgba(74,79,140,.5);}
+#tab1.active{background:var(--day1); border-color:var(--day1); color:#fff; transform:scale(1.06); box-shadow:0 6px 16px rgba(189,91,61,.55);}
+#tab2.active{background:var(--day2); border-color:var(--day2); color:#fff; transform:scale(1.06); box-shadow:0 6px 16px rgba(31,111,104,.55);}
+#tab3.active{background:var(--day3); border-color:var(--day3); color:#fff; transform:scale(1.06); box-shadow:0 6px 16px rgba(74,79,140,.55);}
+.tab.active .d{opacity:.95;}
+
+/* 지도 (실제 Leaflet 지도) */
+.mapwrap{position:relative; flex:0 0 190px; height:190px; width:100%; border-bottom:1px solid var(--line); background:#eef1ea;}
+#leafletMap{width:100%; height:100%;}
+.map-badge{
+  position:absolute; top:8px; left:8px; z-index:500;
+  background:rgba(255,255,255,.95); padding:5px 11px; border-radius:20px;
+  font-size:12px; font-weight:800; box-shadow:0 2px 6px rgba(0,0,0,.15); color:var(--ink);
+}
+.map-hint{
+  position:absolute; bottom:8px; right:8px; z-index:500; font-size:11.5px; color:var(--ink); font-weight:700;
+  background:rgba(255,255,255,.92); padding:6px 11px; border-radius:20px; border:none; box-shadow:0 2px 6px rgba(0,0,0,.12);
+  cursor:pointer;
+}
+.pin-wrap{display:flex; align-items:center; justify-content:center;}
+.pin{
+  width:24px; height:24px; border-radius:50% 50% 50% 0; transform:rotate(45deg);
+  display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(0,0,0,.3);
+  border:2px solid #fff;
+}
+.pin span{transform:rotate(-45deg); font-size:10.5px; font-weight:800; color:#fff;}
+.pin.active{width:30px; height:30px; box-shadow:0 0 0 4px rgba(229,62,62,.35), 0 2px 6px rgba(0,0,0,.35); z-index:1000 !important;}
+.opt-pin{width:11px; height:11px; border-radius:50%; border:2px solid #fff; box-shadow:0 1px 4px rgba(0,0,0,.3); opacity:.85;}
+
+/* 타임라인 */
+.list{flex:1; min-height:0; overflow-y:auto; padding:8px 10px 12px; -webkit-overflow-scrolling:touch;}
+
+.moveline{
+  display:flex; align-items:center; gap:6px; margin:1px 0 6px 12px;
+  font-size:12.5px; font-weight:700; color:var(--move);
+}
+.moveline::before{content:''; width:1px; height:14px; background:var(--line); margin-right:2px;}
+
+/* 출발 정보 카드 */
+.departrow{display:flex; gap:6px; margin-bottom:7px;}
+.depart-card{
+  flex:1; background:var(--card); border-radius:15px; padding:8px 10px;
+  position:relative; overflow:hidden; box-shadow:0 2px 10px rgba(28,37,48,.06);
+}
+.depart-card::before{content:''; position:absolute; left:0; top:0; bottom:0; width:4px;}
+.depart-card.geoje::before{background:var(--day1);}
+.depart-card.pt::before{background:var(--day2);}
+.depart-card .team{font-size:12.5px; font-weight:800; color:var(--sub); margin-bottom:2px;}
+.depart-card .go{font-size:13px; color:var(--sub); font-weight:600; margin-bottom:1px;}
+.depart-card .clock{font-size:23px; font-weight:900; letter-spacing:-0.02em; margin-bottom:2px;}
+.depart-card .stat{font-size:12.5px; color:var(--sub); line-height:1.55;}
+.depart-card .note{font-size:11.5px; color:var(--gold); margin-top:2px; font-weight:700;}
+
+.card{
+  position:relative; display:flex; gap:10px; background:var(--card);
+  border-radius:18px; padding:10px; margin-bottom:7px;
+  box-shadow:0 3px 14px rgba(28,37,48,.07);
+  cursor:pointer;
+}
+.card:active{background:#f4ecdb;}
+.card.hl{box-shadow:0 0 0 1.5px var(--gold), 0 6px 18px rgba(28,37,48,.14);}
+.card .num{
+  flex:0 0 auto; width:26px; padding-top:1px; text-align:center;
+  font-family:'Noto Serif KR',serif; font-size:17px; font-weight:600; color:var(--sub); position:relative;
+}
+.card .num::after{content:''; position:absolute; left:50%; bottom:-6px; transform:translateX(-50%); width:3px; height:3px; border-radius:50%;}
+.card.cat-tour .num{color:var(--tour);} .card.cat-tour .num::after{background:var(--tour);}
+.card.cat-meal .num{color:var(--meal);} .card.cat-meal .num::after{background:var(--meal);}
+.card.cat-stay .num{color:var(--stay);} .card.cat-stay .num::after{background:var(--stay);}
+.card .cbody{flex:1; min-width:0;}
+.card .toprow{display:flex; align-items:center; gap:7px; margin-bottom:3px;}
+.tag{font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;}
+.cat-tour .tag{color:var(--tour);}
+.cat-meal .tag{color:var(--meal);}
+.cat-stay .tag{color:var(--stay);}
+.card .time{font-size:12.5px; font-weight:800; padding:4px 9px; border-radius:8px; background:var(--line); color:var(--ink); white-space:nowrap;}
+.cat-tour .time{background:var(--tour-bg); color:var(--tour);}
+.cat-meal .time{background:var(--meal-bg); color:var(--meal);}
+.cat-stay .time{background:var(--stay-bg); color:var(--stay);}
+.card .ctitle{font-family:'Noto Serif KR',serif; font-size:17.5px; font-weight:700; line-height:1.42; color:var(--ink);}
+.card .csub{font-size:13.5px; color:var(--sub); margin-top:3px; line-height:1.45;}
+.card .zoom{
+  margin-left:auto; flex:0 0 auto; display:flex; align-items:center; gap:3px;
+  padding:6px 12px; border-radius:20px;
+  background:var(--gold); border:1px solid var(--gold); font-size:11.5px; font-weight:800; color:#fff; white-space:nowrap;
+  box-shadow:0 2px 6px rgba(199,154,82,.35);
+}
+
+/* 식사 선택 칩 */
+.optrow{display:flex; gap:7px; overflow-x:auto; margin-top:5px; padding-bottom:1px; scrollbar-width:none;}
+.optrow::-webkit-scrollbar{display:none;}
+.opt{
+  flex:0 0 auto; width:198px; padding:10px 11px 9px; border:none;
+  border-radius:14px; background:var(--paper); cursor:pointer; box-shadow:inset 0 0 0 1px rgba(28,37,48,.05);
+  overflow:hidden; text-align:left;
+}
+.meal-thumb{position:relative;height:92px;margin:-10px -11px 9px;background:#ddd;overflow:hidden;}
+.meal-thumb img{display:block;width:100%;height:100%;object-fit:cover;}
+.meal-thumb span{position:absolute;right:7px;bottom:6px;padding:3px 7px;border-radius:12px;background:rgba(28,37,48,.72);color:#fff;font-size:10px;font-weight:800;}
+.opt .oname{font-size:13.5px; font-weight:800; line-height:1.3; color:var(--ink);}
+.opt .orate{font-size:11.5px; color:var(--gold); font-weight:800; margin-top:3px;}
+.opt .omenu{font-size:12px; color:var(--ink); font-weight:700; margin-top:7px; line-height:1.4;}
+.opt .omenu .lbl{color:var(--sub); font-weight:600; margin-right:3px;}
+.opt .oprice{font-size:11.5px; color:var(--meal); font-weight:700; margin-top:3px;}
+.opt .oreason{
+  font-size:11px; color:var(--sub); line-height:1.45; margin-top:6px;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+}
+.opt .obottom{display:flex; align-items:center; justify-content:flex-end; margin-top:5px; gap:4px;}
+.opt .ozoom{
+  flex:0 0 auto; display:flex; align-items:center; gap:2px; padding:5px 10px; border-radius:20px;
+  background:#fff; border:1px solid var(--line); font-size:10.5px; font-weight:700; color:var(--ink);
+}
+
+/* 상세 팝업 시트 */
+.overlay{
+  position:absolute; inset:0; background:rgba(20,17,12,.5); z-index:2000;
+  display:none; align-items:flex-end; justify-content:center;
+}
+.overlay.show{display:flex;}
+.sheet{
+  width:100%; max-height:82%; background:#fff; border-radius:20px 20px 0 0;
+  overflow-y:auto; padding:4px 14px 14px; animation:up .2s ease-out; position:relative;
+}
+@keyframes up{from{transform:translateY(20px); opacity:0;} to{transform:translateY(0); opacity:1;}}
+.sheet .handle{width:36px; height:4px; background:var(--line); border-radius:4px; margin:6px auto 8px;}
+.sheet h2{margin:0 42px 3px 0; font-size:22px; font-weight:800; font-family:'Noto Serif KR',serif;}
+.sheet .badgeRow{display:flex; gap:6px; align-items:center; margin-bottom:8px; flex-wrap:wrap;}
+.pill{font-size:12.5px; font-weight:800; padding:4px 10px; border-radius:20px; color:#fff;}
+.pill.rate{background:var(--gold);}
+.pill.price{background:var(--ink);}
+.sheet .desc{font-size:15px; line-height:1.5; color:#4a453e; margin-bottom:9px;}
+.sheet .kv{display:flex; font-size:14px; padding:5px 0; border-top:1px solid var(--line);}
+.sheet .kv:first-of-type{border-top:none;}
+.sheet .kv .k{width:70px; flex:0 0 auto; color:var(--sub); font-weight:700;}
+.sheet .kv .v{flex:1; font-weight:600;}
+.sheet .reason{
+  margin-top:8px; padding:9px 11px; background:#f7f3ea; border-radius:12px;
+  font-size:14px; line-height:1.62; color:#5a5347;
+}
+.sheet .reason b{color:var(--ink);}
+.sheet .gmap{
+  display:block; text-align:center; margin-top:10px; padding:10px; border-radius:12px;
+  background:#fff; color:var(--ink); font-weight:700; font-size:14.5px; text-decoration:none;
+  border:1.5px solid var(--line);
+}
+.sheet .confirmBtn{
+  display:block; width:100%; text-align:center; margin-top:7px; padding:11px; border-radius:12px;
+  background:var(--ink); color:#fff; font-weight:800; font-size:15px; border:none;
+}
+.closeBtn{
+  position:absolute; top:10px; right:12px; z-index:5; width:36px; height:36px; border-radius:50%;
+  background:#f2ede2; border:1px solid var(--line); font-size:18px; font-weight:800; color:var(--ink);
+  box-shadow:0 2px 7px rgba(28,37,48,.14); cursor:pointer;
+}
+
+/* 관광지 상세 사진 */
+.tour-gallery{margin:8px 0 9px;min-width:0;}
+.tour-gallery-stage{position:relative;}
+.tour-gallery-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;border-radius:12px;}
+.tour-gallery-track::-webkit-scrollbar{display:none;}
+.tour-gallery-slide{flex:0 0 100%;min-width:0;margin:0;scroll-snap-align:start;scroll-snap-stop:always;}
+.tour-gallery-image{display:flex;align-items:center;justify-content:center;width:100%;height:clamp(150px,27vh,220px);background:#141b24;}
+.tour-gallery-image img{display:block;width:100%;height:100%;object-fit:contain;}
+.tour-gallery-error{padding:20px;color:#fff;font-size:13px;line-height:1.6;text-align:center;}
+.tour-gallery-slide figcaption{padding:5px 2px 0;font-size:12px;line-height:1.4;font-weight:600;color:var(--ink);}
+.tour-gallery-nav{position:absolute;top:calc(clamp(150px,27vh,220px)/2);z-index:3;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;width:36px;height:36px;padding:0;border:1px solid rgba(255,255,255,.55);border-radius:50%;background:rgba(20,27,36,.68);color:#fff;font:inherit;font-size:25px;line-height:1;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;touch-action:manipulation;}
+.tour-gallery-prev{left:7px;}
+.tour-gallery-next{right:7px;}
+.tour-gallery-nav:focus-visible,.tour-gallery-track:focus-visible{outline:2px solid var(--gold);outline-offset:2px;}
+.tour-gallery-count{position:absolute;top:8px;right:8px;z-index:3;min-width:42px;padding:3px 7px;border-radius:12px;background:rgba(20,27,36,.68);color:#fff;text-align:center;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;}
+.tour-gallery-hint{margin:4px 0 0;font-size:11px;line-height:1.4;color:#746c60;text-align:center;}
+.tour-gallery-credits{margin-top:8px;font-size:11px;line-height:1.6;color:#746c60;overflow-wrap:anywhere;}
+.tour-gallery-credits summary{cursor:pointer;padding:5px 0;}
+.tour-gallery-credits ol{padding-left:20px;margin:4px 0;}
+.tour-gallery-credits li+li{margin-top:8px;}
+.tour-gallery-credits a{color:#1f6f68;text-underline-offset:2px;}
+.meal-detail-photo{margin:8px 0 10px;}
+.meal-detail-photo img{display:block;width:100%;height:clamp(170px,29vh,235px);object-fit:contain;border-radius:12px;background:#141b24;}
+.meal-detail-photo figcaption{padding:5px 2px 0;font-size:11px;line-height:1.45;color:#746c60;}
+.meal-detail-photo a{color:#1f6f68;text-underline-offset:2px;}
+
+/* 토스트 (복사 완료 알림) */
+.toast{
+  position:absolute; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
+  background:var(--ink); color:#fbf7ee; font-size:14px; font-weight:700;
+  padding:10px 18px; border-radius:30px; box-shadow:0 6px 18px rgba(0,0,0,.3);
+  z-index:3000; opacity:0; pointer-events:none; transition:.25s;
+}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="titles">
+      <h1>칠순기념 강원도 가족여행 일정표</h1>
+      <div class="meta">2026.10.3(토)~10.5(월) · 양양 송시재 2박 · 거제 5명 + 평택 4명</div>
+    </div>
+    <button class="copyBtn" onclick="copySchedule()">📋 일정복사</button>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" id="tab1" onclick="showDay(1)">1일차<span class="d">속초·낙산사</span></button>
+    <button class="tab" id="tab2" onclick="showDay(2)">2일차<span class="d">설악산·강릉</span></button>
+    <button class="tab" id="tab3" onclick="showDay(3)">3일차<span class="d">발왕산·해산</span></button>
+  </div>
+
+  <div class="mapwrap">
+    <div id="leafletMap"></div>
+    <div class="map-badge" id="mapBadge">🗺 1일차 전체 동선</div>
+    <button class="map-hint" onclick="resetMapView()">↺ 전체보기</button>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <div class="overlay" id="overlay" onclick="if(event.target.id==='overlay')closeSheet()">
+    <div class="sheet">
+      <div class="handle"></div>
+      <button class="closeBtn" onclick="closeSheet()">✕</button>
+      <div id="sheetBody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="photos/photo-gallery.js"></script>
+<script>
+/* ===================== 데이터 (1번 버전 데이터 그대로 사용) ===================== */
+const DAYCOLOR = {1:'#bd5b3d',2:'#1f6f68',3:'#4a4f8c'};
+const CATLABEL = {tour:'관광', meal:'식사/장보기', stay:'숙박'};
+const CATCOLOR = {tour:'#1f6f68', meal:'#c66038', stay:'#6b4f8f'};
+const DAYNAME = {1:'1일차 (10/3) 속초·낙산사', 2:'2일차 (10/4) 설악산·강릉', 3:'3일차 (10/5) 발왕산·해산'};
+
+const DATA = {
+1:[
+  {t:'depart', team:'거제팀', time:'06:30', dist:'약 420~450km', dur:'5시간40분~6시간40분(휴게소 포함)', note:'도착 목표 12:10~13:10'},
+  {t:'depart', team:'평택팀', time:'08:40', dist:'약 240~250km', dur:'3시간30분~4시간(휴게소 포함)', note:'도착 목표 12:10~12:40'},
+  {t:'event', cat:'meal', time:'12:30 - 13:40', icon:'🍽️', title:'점심 (학사평 순두부마을)', sub:'전원 합류 후 첫 식사, 취향대로 골라 이동', lat:38.2059, lng:128.5240,
+    detail:{desc:'전원 합류 후 첫 식사. 순두부마을 골목에 모여있어 원하는 곳으로 흩어져도 됩니다.', reason:'거제·평택 양쪽에서 접근하기 좋은 위치이자, 다이나믹메이즈와 도보권이라 이동 낭비가 없습니다.'},
+    options:[
+      {name:'옥미정 산채정식', lat:38.2054,lng:128.5291, rate:'4.5', reviews:281, phone:'033-631-7799', addr:'속초시 노학동 1011-42', menu:'산채정식·산채비빔밥', price:'1인 15,000~20,000원', reason:'가정식 스타일 반찬이 푸짐하고 어르신 입맛에 편안합니다. 채식 메뉴도 있습니다.'},
+      {name:'진솔할머니순두부', lat:38.2064,lng:128.5209, rate:'4.3', reviews:1128, phone:'033-636-9519', addr:'속초시 노학동 1015-6', menu:'순두부찌개', price:'1인 10,000~13,000원', reason:'담백하고 깔끔한 순두부, 바다 근처라 분위기도 좋습니다.'},
+      {name:'옛고을순두부', lat:38.2063,lng:128.5205, rate:'4.4', reviews:919, phone:'033-636-9937', addr:'속초시 노학동 원암학사평길 183', menu:'초당순두부·전복짬뽕순두부', price:'1인 11,000~16,000원', reason:'국내산콩 초당순두부가 진하고, 2층 카페에서 전망도 즐길 수 있습니다.'},
+      {name:'김정옥할머니순두부(본점)', lat:38.2058,lng:128.5283, rate:'3.4', reviews:1185, phone:'033-636-9877', addr:'속초시 노학동 1011-51', menu:'순두부찌개', price:'1인 9,000~12,000원', reason:'순두부마을의 원조격 상호. 다만 최근 평점은 다소 낮은 편이니 참고하세요.'},
+      {name:'김영애할머니순두부', lat:38.2060,lng:128.5280, rate:'4.2', reviews:3539, phone:'033-635-9520', addr:'속초시 노학동 원암학사평길 183', menu:'순두부정식', price:'1인 9,000~12,000원', reason:'반찬 무한리필, 후기 3,500개 이상으로 검증된 로컬 맛집입니다.'},
+    ]},
+  {t:'move', title:'학사평 → 다이나믹메이즈', note:'도보권 · 5분 이내'},
+  {t:'event', cat:'tour', time:'14:00 - 15:30', icon:'🧩', title:'다이나믹메이즈 속초', sub:'어린이·가족 실내 체험 액티비티', lat:38.2055, lng:128.5173,
+    detail:{desc:'설악산 자락에 위치한 체험형 미로 테마파크. 평균 소요 25~30분 내외.', reason:'투표에서 속초·양양·강릉 그룹 공동 1위. 온 가족이 몸으로 즐길 수 있는 코스입니다.', rate:'3.9', reviews:14, addr:'속초시 원암학사평길 88'}},
+  {t:'move', title:'다이나믹메이즈 → 낙산사', note:'약 13km · 20~25분'},
+  {t:'event', cat:'tour', time:'16:00 - 17:00', icon:'⛩️', title:'낙산사 관람', sub:'동해 바다 뷰 & 해수관음상 산책', lat:38.1246, lng:128.6280,
+    detail:{desc:'동해바다를 배경으로 한 사찰. 경사·계단이 있어 어르신 걸음 속도에 맞춰 여유있게 이동하세요.', reason:'가족들이 꼭 가고 싶어했던 곳. 바다 전망 사찰이라 사진 명소로도 좋습니다.', rate:'4.5', reviews:10630, addr:'양양군 강현면 낙산사로 100'}},
+  {t:'move', title:'낙산사 → 양양읍(남문리)', note:'약 12km · 20분'},
+  {t:'event', cat:'meal', time:'17:00 - 17:30', icon:'🥡', title:'저녁 포장 & 마트 장보기', sub:'양양읍 남문리, 도보권에서 한번에 해결', lat:38.0740, lng:128.6222,
+    detail:{desc:'회·닭강정·장보기까지 도보 5분 이내 한 동네에서 해결 가능합니다.', reason:'숙소에서 바베큐 대신/함께 즐길 포장 메뉴를 이곳에서 준비합니다.'},
+    options:[
+      {name:'양양바다 회포장', lat:38.0736,lng:128.6216, rate:'4.9', reviews:138, phone:'010-8405-0442', addr:'양양읍 남문9길 16', menu:'광어회·해삼·오징어순대 세트', price:'2인 세트 약 70,000원', reason:'양양 여행객 필수 코스로 꼽히는 곳. 인원수 맞춰 사전 예약 추천합니다.'},
+      {name:'송이닭강정(본점)', lat:38.0755,lng:128.6229, rate:'3.8', reviews:153, phone:'033-673-0301', addr:'양양읍 양양로 57', menu:'닭강정(순한맛/매운맛)', price:'1박스 약 19,000~22,000원', reason:'양양 로컬들이 인정하는 닭강정. 아이들 입맛까지 챙기기 좋습니다.'},
+      {name:'하나로마트 양양농협점', lat:38.0738,lng:128.6228, rate:'3.9', reviews:389, phone:'033-671-0074', addr:'양양읍 남문리 208-4', menu:'부족한 반찬·음료·주류 보충', price:'-', reason:'8시까지 영업, 회·닭강정과 도보권이라 한번에 다 해결됩니다.'},
+    ]},
+  {t:'move', title:'양양읍 → 송시재 숙소', note:'약 10km · 15분'},
+  {t:'event', cat:'stay', time:'17:45 -', icon:'🏠', title:'양양 송시재 체크인 & 저녁', sub:'숙소 입실 후 포장해온 음식으로 식사', lat:38.0244, lng:128.7233,
+    detail:{desc:'하조대 해수욕장 약 3km(차량 3분) · 어성전리 계곡 인근, 1,000평 부지를 한 팀만 사용하는 독채 풀빌라. 방 2개 + 복층형 다락방 1개, 퀸사이즈 침대 3개 + 거실 대형소파 2개, 건식 화장실 2개(샤워 분리형·호텔식 세면대). 전용 수영장(7.6m×2.6m×1.4m)과 15인용 바베큐장(유리온실형) 보유. 체크인 오후 3시 이후 / 체크아웃 오전 11시 이전.', reason:'후기 180개 중 평점 4.97(청결·정확도·체크인 모두 5.0), 슈퍼호스트 운영 숙소로 세 후보 중 가장 우수했습니다.', rate:'4.97', reviews:180, addr:'강원도 양양군 현북면 상광정리 851', phone:'호스트 종식님 (에어비앤비 앱 메시지로 연락)', url:'https://www.airbnb.co.kr/rooms/36259183', blog:'https://m.blog.naver.com/sozrzn/223996629364'}},
+],
+2:[
+  {t:'move', title:'숙소 → 설악산', note:'약 26km · 35분 (6시 전 출발 권장)'},
+  {t:'event', cat:'tour', time:'아침 오픈런', icon:'🚡', title:'설악산 케이블카', sub:'단풍철 첫차 30~40분 전 도착 목표', lat:38.1731, lng:128.4891,
+    detail:{desc:'단풍철 성수기 대비, 첫차 30~40분 전 도착 목표. 당일 현장구매만 가능하며 기상 영향이 큽니다.', reason:'투표 3위 명소이자, 전날 밤 공식 홈페이지에서 운행시간 확인이 필수입니다.', rate:'4.3', reviews:11581, addr:'속초시 설악산로 1137'}},
+  {t:'event', cat:'tour', time:'10:30 - 11:30', icon:'☕', title:'속초에서 휴식', sub:'하산 후 다음 일정 전 재정비'},
+  {t:'event', cat:'meal', time:'11:30 - 12:30', icon:'🍽️', title:'점심 (속초권)', sub:'강릉 이동 전 막국수 위주 식사', lat:38.1930, lng:128.5560,
+    detail:{desc:'설악산 하산 후 강릉으로 이동하기 전 식사. 막국수 2곳은 도보권으로 서로 가깝습니다.', reason:'강원도 대표 향토음식인 막국수 위주로 구성했습니다.'},
+    options:[
+      {name:'동화가든 속초점', lat:38.1984,lng:128.5358, rate:'3.9', reviews:934, phone:'033-633-8181', addr:'속초시 광광로 433', menu:'짬뽕순두부', price:'1인 12,000~15,000원', reason:'해산물 듬뿍 짬뽕순두부가 대표메뉴. 수요일 휴무 참고.'},
+      {name:'속초 탑골막국수 본점', lat:38.1917,lng:128.6015, rate:'4.9', reviews:516, phone:'010-7447-6740', addr:'속초시 조양동 1449-2', menu:'메밀막국수·메밀만두', price:'1인 10,000~13,000원', reason:'평점·후기수 모두 압도적. 케이블카 후 시원하게 마무리하기 좋습니다.'},
+      {name:'청대리막국수', lat:38.1862,lng:128.5713, rate:'4.5', reviews:200, phone:'033-633-5677', addr:'속초시 청대마을길 37', menu:'막국수·감자전', price:'1인 9,000~13,000원', reason:'숨은 맛집, 직접 담근 김치와 친절한 응대로 호평이 많습니다.'},
+    ]},
+  {t:'move', title:'속초 → 강릉 아르떼뮤지엄', note:'약 56km · 1시간~1시간10분'},
+  {t:'event', cat:'tour', time:'13:40 - 15:40', icon:'🎨', title:'강릉 아르떼뮤지엄', sub:'몰입형 미디어아트, 실내라 무리없음', lat:37.7918, lng:128.9072,
+    detail:{desc:'몰입형 미디어아트 전시관. 실내 활동이라 어르신도 무리 없이 관람 가능합니다.', reason:'투표 공동 상위권. 전 세대가 무난하게 즐길 수 있는 실내 코스입니다.', rate:'4.6', reviews:3049, addr:'강릉시 난설헌로 131'}},
+  {t:'move', title:'아르떼뮤지엄 → 강릉 중앙시장', note:'약 4km · 10분'},
+  {t:'event', cat:'meal', time:'16:00 - 17:20', icon:'🍢', title:'강릉 중앙시장 장보기', sub:'바베큐 곁들일 먹거리 포장', lat:37.7540, lng:128.8986,
+    detail:{desc:'저녁 바베큐에 곁들일 먹거리를 포장합니다.', reason:'강릉 대표 전통시장으로, 회·닭강정·분식류가 유명합니다.'},
+    options:[
+      {name:'중앙닭강정', lat:37.7539,lng:128.8992, rate:'3.3', reviews:25, phone:'-', addr:'강릉 중앙시장 내', menu:'닭강정', price:'반마리 약 12,000원', reason:'배니닭강정보다 맛있다는 후기가 많은 대안 매장입니다.'},
+      {name:'수제 어묵고로케·오징어순대·오징어회', lat:37.7540,lng:128.8986, rate:'-', reviews:0, phone:'-', addr:'강릉 중앙시장 내', menu:'어묵고로케·오징어순대·오징어회', price:'개당 3,000~5,000원 내외', reason:'시장 명물 먹거리. 오징어회는 신선도 때문에 당일 소비를 권장합니다.'},
+    ]},
+  {t:'move', title:'중앙시장 → 홈플러스 강릉점', note:'도보 약 3분'},
+  {t:'event', cat:'meal', time:'17:20 - 17:50', icon:'🛒', title:'홈플러스 강릉점', sub:'바베큐용 고기·채소·주류 구매', lat:37.7557, lng:128.8986,
+    detail:{desc:'바베큐용 고기·채소·주류 등 부족한 재료를 보충합니다.', reason:'중앙시장 도보 3분 거리라 동선 낭비 없이 한번에 장보기 가능합니다.', rate:'3.9', reviews:2926, addr:'강릉시 경강로 2120', phone:'033-649-8000'}},
+  {t:'move', title:'홈플러스 → 송시재 숙소', note:'약 34km · 45분'},
+  {t:'event', cat:'stay', time:'18:30 - 19:30', icon:'🏠', title:'송시재 복귀 & 바베큐 저녁', sub:'낮에 사온 재료로 바베큐 & 회 저녁상', lat:38.0244, lng:128.7233,
+    detail:{desc:'낮에 사온 재료로 바베큐 + 회 + 닭강정 저녁상. 15인용 유리온실 바베큐장에서 편하게 즐기실 수 있습니다.', reason:'2박 연박 숙소라 짐을 다시 풀 필요가 없습니다.', rate:'4.97', reviews:180, addr:'강원도 양양군 현북면 상광정리 851', url:'https://www.airbnb.co.kr/rooms/36259183', blog:'https://m.blog.naver.com/sozrzn/223996629364'}},
+],
+3:[
+  {t:'move', title:'숙소 → 발왕산', note:'약 46km · 1시간 (5~5시반 기상 권장)'},
+  {t:'event', cat:'tour', time:'아침 오픈런', icon:'🌤️', title:'발왕산 케이블카 & 스카이워크', sub:'첫 상행 20~30분 전 도착 목표', lat:37.6120, lng:128.6718,
+    detail:{desc:'첫 상행 20~30분 전 도착 목표. 스카이워크는 바람이 강하면 통제될 수 있습니다.', reason:'투표 상위권 명소. 3일차는 무리하지 않는 선에서 전망 하나만 챙기는 구성입니다.', rate:'4.6', reviews:3923, addr:'평창군 대관령면 용산리'}},
+  {t:'move', title:'발왕산 → 월정사', note:'약 13km · 20분'},
+  {t:'event', cat:'tour', time:'11:20 - 12:20', icon:'🌲', title:'월정사 전나무숲길', sub:'평지 위주 약 1.9km 순환 산책로', lat:37.7163, lng:128.6024,
+    detail:{desc:'평지 위주 약 1.9km 순환 산책로. 무리 없는 마무리 코스입니다.', reason:'투표 평창 그룹 1위. 전 세대가 부담없이 걸을 수 있는 힐링 코스입니다.', rate:'4.6', reviews:109, addr:'평창군 진부면 동산리'}},
+  {t:'event', cat:'meal', time:'12:40 - 13:40', icon:'🍽️', title:'점심 (월정사 앞 산채정식 거리)', sub:'주차장 도보 1분, 산채정식 전문점 밀집', lat:37.7161, lng:128.6018,
+    detail:{desc:'월정사 주차장 바로 앞, 도보 1분 거리에 산채정식 전문점이 모여있습니다.', reason:'투표·후기 모두 검증된 강원도 향토 산채요리로 여행을 마무리합니다.'},
+    options:[
+      {name:'동대산식당', lat:37.7159,lng:128.6017, rate:'4.6', reviews:30, phone:'033-332-6910', addr:'평창군 진부면 오대산로 152', menu:'곤드레밥·산채비빔밥', price:'1인 15,000~20,000원', reason:'네 곳 중 평점이 가장 높고 반찬이 깔끔하다는 후기가 많습니다.'},
+      {name:'오대산산채일번가', lat:37.7164,lng:128.6018, rate:'4.3', reviews:84, phone:'033-333-4604', addr:'평창군 진부면 오대산로 152 2동2호', menu:'산채정식·산채비빔밥', price:'1인 15,000~22,000원', reason:'최소 양념으로 재료 본연의 맛을 살린 산채요리. 채식 위주 입맛에 좋습니다.'},
+      {name:'선재길식당', lat:37.7159,lng:128.6016, rate:'4.2', reviews:430, phone:'033-336-9696', addr:'평창군 진부면 동산리 335', menu:'산채정식(반찬 20여가지)·연잎밥', price:'1인 22,000~29,000원', reason:'후기 수가 가장 많아 안정적. 반찬 가짓수가 풍성합니다.'},
+      {name:'산촌식당', lat:37.7162,lng:128.6018, rate:'4.1', reviews:323, phone:'033-333-7975', addr:'평창군 진부면 동산리 332-1', menu:'산채정식', price:'1인 13,000~29,000원', reason:'반찬 13가지 이상으로 채식주의자도 만족한다는 후기. 일부 리뷰 관련 불만 후기 참고 필요.'},
+    ]},
+  {t:'move', title:'진부 → 거제/평택', note:'약 315km / 145km · 각자 귀가'},
+  {t:'event', cat:'stay', time:'식사 후', icon:'🚗', title:'해산, 각자 귀가', sub:'2박 3일 여행 종료', detail:{desc:'2박 3일 가족여행 종료. 거제팀·평택팀 각자 귀가합니다.', reason:'즐거운 여행 되시길 바랍니다!'}},
+]
+};
+
+/* ===================== 상태 ===================== */
+let currentDay = 1;
+let map = null;
+let markersLayer = null;
+const markerRefs = {}; // key -> leaflet marker
+const idToItem = {};
+
+function buildDetailKey(day, iIdx, oIdx){ return day+'_'+iIdx+'_'+(oIdx===undefined?'x':oIdx); }
+
+/* ===================== 카드 리스트 렌더링 (1번 로직 그대로) ===================== */
+function renderDay(day){
+  const list = document.getElementById('list');
+  const items = DATA[day];
+  let html = ''; let num = 0;
+  let departBuf = [];
+  function flushDepart(){
+    if(!departBuf.length) return;
+    html += '<div class="departrow">';
+    departBuf.forEach(d=>{
+      const cls = d.team.includes('거제') ? 'geoje' : 'pt';
+      html += `<div class="depart-card ${cls}">
+        <div class="team">🚙 ${d.team} 출발</div>
+        <div class="clock">${d.time}</div>
+        <div class="stat">${d.dist} · ${d.dur}</div>
+        <div class="note">${d.note}</div>
+      </div>`;
+    });
+    html += '</div>';
+    departBuf = [];
+  }
+  items.forEach((item, iIdx)=>{
+    if(item.t==='depart'){ departBuf.push(item); return; }
+    flushDepart();
+    if(item.t==='move'){
+      html += `<div class="moveline">🚗 이동 · ${item.title.split('→')[1]||item.title} ${item.note?('('+item.note+')'):''}</div>`;
+      return;
+    }
+    num++;
+    const key = buildDetailKey(day, iIdx);
+    idToItem[key] = {kind:'item', day, iIdx};
+    html += `
+      <div class="card cat-${item.cat}" id="row_${key}" onclick="onItemClick('${key}')">
+        <div class="num">${num}</div>
+        <div class="cbody">
+          <div class="toprow">
+            <span class="tag">${CATLABEL[item.cat]}</span>
+            <span class="time">${item.time}</span>
+            ${item.detail?`<span class="zoom" onclick="event.stopPropagation();openSheet('${key}')">🔍 상세보기</span>`:''}
+          </div>
+          <div class="ctitle">${item.icon||''} ${item.title}</div>
+          ${item.sub?`<div class="csub">${item.sub}</div>`:''}
+          ${item.options?renderOpts(day, iIdx, item.options):''}
+        </div>
+      </div>
+    `;
+  });
+  flushDepart();
+  list.innerHTML = html;
+}
+
+function renderOpts(day, iIdx, options){
+  let h = '<div class="optrow">';
+  options.forEach((opt, oIdx)=>{
+    const key = buildDetailKey(day, iIdx, oIdx);
+    idToItem[key] = {kind:'opt', day, iIdx, oIdx};
+    h += `
+      <div class="opt" onclick="event.stopPropagation();onOptClick('${key}')">
+        ${renderMealThumb(opt.name)}
+        <div class="oname">${oIdx+1}. ${opt.name}</div>
+        <div class="orate">${opt.rate!=='-'?'★ '+opt.rate+(opt.reviews?(' ('+opt.reviews.toLocaleString()+')'):''):'평점 정보없음'}</div>
+        ${opt.menu?`<div class="omenu"><span class="lbl">메뉴</span>${opt.menu}</div>`:''}
+        ${opt.price&&opt.price!=='-'?`<div class="oprice">${opt.price}</div>`:''}
+        ${opt.reason?`<div class="oreason">${opt.reason}</div>`:''}
+      </div>
+    `;
+  });
+  return h + '</div>';
+}
+
+function onItemClick(key){
+  const ref = idToItem[key];
+  highlightRow(key);
+  const item = DATA[ref.day][ref.iIdx];
+  if(item.lat) focusMarker(key);
+}
+function onOptClick(key){
+  const ref = idToItem[key];
+  const opt = DATA[ref.day][ref.iIdx].options[ref.oIdx];
+  if(opt.lat) focusMarker(key);
+  openSheet(key);
+}
+function highlightRow(key){
+  document.querySelectorAll('.card.hl').forEach(r=>r.classList.remove('hl'));
+  const el = document.getElementById('row_'+key);
+  if(el) el.classList.add('hl');
+}
+
+/* ===================== 실제 지도 (Leaflet + OpenStreetMap) ===================== */
+function initLeaflet(){
+  map = L.map('leafletMap', { zoomControl:false, attributionControl:false }).setView([38.1,128.6], 9);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom:18 }).addTo(map);
+  markersLayer = L.layerGroup().addTo(map);
+}
+
+function makeIcon(colorHex, label, small){
+  if(small){
+    return L.divIcon({
+      className:'', html:`<div class="opt-pin" style="background:${colorHex}"></div>`,
+      iconSize:[11,11], iconAnchor:[5,5]
+    });
+  }
+  return L.divIcon({
+    className:'', html:`<div class="pin-wrap"><div class="pin" style="background:${colorHex}"><span>${label}</span></div></div>`,
+    iconSize:[24,24], iconAnchor:[12,22]
+  });
+}
+
+function buildMap(day){
+  document.getElementById('mapBadge').textContent = '🗺 ' + DAYNAME[day];
+  markersLayer.clearLayers();
+  Object.keys(markerRefs).forEach(k=>delete markerRefs[k]);
+
+  const items = DATA[day];
+  const mainPts = [];
+  const optPts = [];
+  items.forEach((item, iIdx)=>{
+    if(item.lat){ mainPts.push({lat:item.lat,lng:item.lng,key:buildDetailKey(day,iIdx),cat:item.cat}); }
+    if(item.options) item.options.forEach((opt,oIdx)=>{
+      if(opt.lat) optPts.push({lat:opt.lat,lng:opt.lng,key:buildDetailKey(day,iIdx,oIdx)});
+    });
+  });
+
+  if(mainPts.length===0){ return; }
+
+  // 이동경로 선
+  const latlngs = mainPts.map(p=>[p.lat,p.lng]);
+  if(latlngs.length>1){
+    L.polyline(latlngs, {color:DAYCOLOR[day], weight:3, opacity:.75, dashArray:'2,8'}).addTo(markersLayer);
+  }
+
+  // 후보(옵션) 작은 점
+  optPts.forEach(p=>{
+    const m = L.marker([p.lat,p.lng], {icon: makeIcon('#a9855a', '', true)}).addTo(markersLayer);
+    m.on('click', ()=>onMarkerClick(p.key));
+    markerRefs[p.key] = m;
+  });
+
+  // 메인 지점 번호 핀
+  mainPts.forEach((p,i)=>{
+    const m = L.marker([p.lat,p.lng], {icon: makeIcon(CATCOLOR[p.cat]||'#1f6f68', i+1, false)}).addTo(markersLayer);
+    m.on('click', ()=>onMarkerClick(p.key));
+    markerRefs[p.key] = m;
+  });
+
+  setTimeout(()=>{ map.invalidateSize(); fitToDay(day); }, 60);
+}
+
+function fitToDay(day){
+  const items = DATA[day];
+  const pts = [];
+  items.forEach(item=>{
+    if(item.lat) pts.push([item.lat,item.lng]);
+    if(item.options) item.options.forEach(o=>{ if(o.lat) pts.push([o.lat,o.lng]); });
+  });
+  if(pts.length) map.fitBounds(pts, {padding:[26,26]});
+}
+
+function resetMapView(){
+  fitToDay(currentDay);
+  document.querySelectorAll('.card.hl').forEach(r=>r.classList.remove('hl'));
+  Object.entries(markerRefs).forEach(([k,m])=>{
+    const el = m.getElement();
+    if(el){ const pin = el.querySelector('.pin'); if(pin) pin.classList.remove('active'); }
+  });
+}
+
+function focusMarker(key){
+  Object.entries(markerRefs).forEach(([k,m])=>{
+    const el = m.getElement();
+    if(el){ const pin = el.querySelector('.pin'); if(pin) pin.classList.toggle('active', k===key); }
+  });
+  const m = markerRefs[key];
+  if(m){ map.flyTo(m.getLatLng(), 14, {duration:.6}); }
+}
+
+function onMarkerClick(key){
+  focusMarker(key);
+  highlightRow(key);
+  const el = document.getElementById('row_'+key);
+  if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+/* ===================== 상세 팝업 ===================== */
+function openSheet(key){
+  const ref = idToItem[key];
+  let d, name;
+  if(ref.kind==='item'){
+    const item = DATA[ref.day][ref.iIdx];
+    d = item.detail; name = item.title;
+  } else {
+    const opt = DATA[ref.day][ref.iIdx].options[ref.oIdx];
+    d = opt; name = opt.name;
+  }
+  const gsearchQ = encodeURIComponent(name + (d.addr?(' '+d.addr):''));
+  let html = `<h2>${name}</h2>`;
+  html += `<div class="badgeRow">`;
+  if(d.rate && d.rate!=='-') html += `<span class="pill rate">★ ${d.rate}${d.reviews?(' ('+d.reviews.toLocaleString()+')'):''}</span>`;
+  if(d.price) html += `<span class="pill price">${d.price}</span>`;
+  html += `</div>`;
+  html += renderDetailMedia(name);
+  if(d.desc) html += `<div class="desc">${d.desc}</div>`;
+  if(d.menu) html += `<div class="kv"><div class="k">대표메뉴</div><div class="v">${d.menu}</div></div>`;
+  if(d.addr) html += `<div class="kv"><div class="k">주소</div><div class="v">${d.addr}</div></div>`;
+  if(d.phone && d.phone!=='-') html += `<div class="kv"><div class="k">전화</div><div class="v">${d.phone}</div></div>`;
+  if(d.reason) html += `<div class="reason"><b>추천 이유</b><br>${d.reason}</div>`;
+  if(d.url) html += `<a class="gmap" href="${d.url}" target="_blank" style="margin-bottom:9px;">🏠 에어비앤비에서 보기 ↗</a>`;
+  if(d.blog) html += `<a class="gmap" href="${d.blog}" target="_blank" style="margin-bottom:9px;">📝 네이버 블로그 후기 보기 ↗</a>`;
+  if(!d.url) html += `<a class="gmap" href="https://www.google.com/search?q=${gsearchQ}" target="_blank">구글에서 검색해보기 ↗</a>`;
+  html += `<button class="confirmBtn" onclick="closeSheet()">확인했어요, 목록으로</button>`;
+  document.getElementById('sheetBody').innerHTML = html;
+  document.getElementById('overlay').classList.add('show');
+  initTourGallery();
+}
+function closeSheet(){ document.getElementById('overlay').classList.remove('show'); }
+
+/* ===================== 일정 복사 기능 (2번 아이디어 적용) ===================== */
+function copySchedule(){
+  let text = '🎂 칠순기념 강원도 가족여행 일정표 🌲\n\n';
+  [1,2,3].forEach(day=>{
+    text += `[${DAYNAME[day]}]\n`;
+    DATA[day].forEach(item=>{
+      if(item.t==='depart'){
+        text += `- ${item.team} 출발 ${item.time} (${item.dist}, ${item.dur})\n`;
+      } else if(item.t==='move'){
+        text += `  → 이동: ${item.title}${item.note?(' / '+item.note):''}\n`;
+      } else {
+        text += `- ${item.time} ${item.icon||''} ${item.title}${item.sub?(' : '+item.sub):''}\n`;
+      }
+    });
+    text += '\n';
+  });
+  const done = () => showToast('일정이 클립보드에 복사됐습니다! 카톡에 붙여넣어보세요.');
+  const fail = () => showToast('복사에 실패했습니다. 화면을 길게 눌러 직접 복사해주세요.');
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(fail);
+  } else {
+    try{
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      done();
+    }catch(e){ fail(); }
+  }
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+/* ===================== 탭 전환 ===================== */
+function showDay(day){
+  currentDay = day;
+  [1,2,3].forEach(d=>document.getElementById('tab'+d).classList.toggle('active', d===day));
+  renderDay(day);
+  buildMap(day);
+  document.getElementById('list').scrollTop = 0;
+}
+
+/* ===================== 초기 실행 ===================== */
+window.addEventListener('load', ()=>{
+  initLeaflet();
+  showDay(1);
+});
+</script>
+</body>
+</html>
